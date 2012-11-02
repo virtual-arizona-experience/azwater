@@ -1,0 +1,198 @@
+<!-- 
+ * Author: Adrian Sonnenschein 
+ * Organization Name: Arizona Geological Survey
+ * Street Address: 416 W. Congress St., Suite 100
+ * City: Tucson
+ * State/Province: AZ
+ * Postal Code: 85701
+ * Country: USA
+ * Phone: 520.770.3500
+ * Fax: 520.770.3505
+ * Link: http://www.azgs.az.gov
+-->
+
+<!DOCTYPE html>
+<meta charset="utf-8">
+<head>
+<title>Arizona Water Planning Area Statistics</title>
+
+<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.4/leaflet.css" />
+<script src="http://cdn.leafletjs.com/leaflet-0.4.4/leaflet.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+
+<script type="text/javascript" src="azwateruse.js"></script>
+<script type="text/javascript" src="azrivers.js"></script>
+<script type="text/javascript" src="azlakes.js"></script>
+<script type="text/javascript" src="basemap.js"></script>
+
+<style>
+.info {
+    padding: 2px 8px;
+    font: 14px/16px Arial, Helvetica, sans-serif;
+    background: white;
+    background: rgba(255,255,255,0.8);
+    box-shadow: 0 0 15px rgba(0,0,0,0.2);
+    border-radius: 5px;
+}
+.info h4 {
+    margin: 0 0 5px;
+    color: #000;
+}
+.legend {
+    line-height: 18px;
+    color: #000;
+}
+.legend i {
+    width: 22px;
+    height: 18px;
+    float: right;
+    opacity: 0.7;
+}
+space {
+	word-spacing:95px;
+}
+.opacity80 {
+filter:alpha(opacity=80);
+-moz-opacity:0.8;
+-khtml-opacity: 0.8;
+opacity: 0.8;
+} 
+</style>
+
+</head>
+
+<body style="margin:0, padding:0;">
+<div id="map" style="width: 1000px; height: 785px;"></div>
+
+<script type="text/javascript">
+
+//--------- Initialize map ----------------------------
+var map = new L.Map("map", {
+	scrollWheelZoom: false,
+	touchZoom: false,
+	doubleClickZoom: false,
+	zoomControl: false,
+	dragging: false,
+})
+    .setView(new L.LatLng(34.193546, -110.785234), 7)
+	.setMaxBounds([
+    [40.15, -115.65],
+    [29.9, -104.01]
+	]);
+	
+	map.attributionControl.addAttribution("Arizona Geological Survey");
+
+//--------- SuperStylin' ------------------------------
+
+var imageUrl = 'azhlshd.png',
+    imageBounds = [[40.15, -116.65], [29.9, -105.35]];
+
+L.imageOverlay(imageUrl, imageBounds).addTo(map).bringToBack();
+
+function basemapStyle(feature) {
+    switch (feature.properties.STYLE) {
+		case 'Arizona': return {fillColor: "#808080", color: "#000000", weight: 2, opacity: 1, dashArray: '', fillOpacity: 0};
+		case 'Base': return {fillColor: "#808080", color: "#000000", weight: 2, opacity: 1, dashArray: '', fillOpacity: 0.65};
+		case 'Agua': return {fillColor: "#dcdcdc", color: "#000000", weight: 2, opacity: 0.65, dashArray: '', fillOpacity: 0.65};
+	}
+};
+var basemapLayer = new L.GeoJSON(basemap, {style: basemapStyle}).addTo(map);
+
+function azwaterStyle(feature) {
+	switch (feature.properties.PLANNINGAR) {
+		case 'Active Management Area': return {fillColor: "#084594", color: "#000000", weight: 0.5, opacity: 1, dashArray: '', fillOpacity: 0.65};
+		case 'Central Highlands': return {fillColor: "#c6dbef", color: "#000000", weight: 0.5, opacity: 1, dashArray: '', fillOpacity: 0.65};
+		case 'Eastern Plateau': return {fillColor: "#9ecae1", color: "#000000", weight: 0.5, opacity: 1, dashArray: '', fillOpacity: 0.65}
+		case 'Lower Colorado River': return {fillColor: "#2171b5", color: "#000000", weight: 0.5, opacity: 1, dashArray: '', fillOpacity: 0.65};
+		case 'Southeastern Arizona': return {fillColor: "#4292c6", color: "#000000", weight: 0.5, opacity: 1, dashArray: '', fillOpacity: 0.65};
+		case 'Upper Colorado River': return {fillColor: "#6baed6", color: "#000000", weight: 0.5, opacity: 1, dashArray: '', fillOpacity: 0.65};
+		case 'Western Plateau': return {fillColor: "#eff3ff", color: "#000000", weight: 0.5, opacity: 1, dashArray: '', fillOpacity: 0.65};
+	}
+};
+
+var azwaterLayer = new L.GeoJSON(azwateruse, {style: azwaterStyle, onEachFeature: onEachFeature}).addTo(map);
+
+var riversStyle = {color: "#3399ff", weight: 2, opacity: 1, dashArray: ''};
+var azriversLayer = new L.GeoJSON(azrivers, {style: riversStyle}).addTo(map).bringToBack();
+
+var lakesStyle = {fillColor: "#3399ff", color: "#3399ff", weight: 2, opacity: 1, dashArray: '', fillOpacity: 1};
+var azlakesLayer = new L.GeoJSON(azlakes, {style: lakesStyle}).addTo(map).bringToBack();
+	
+//--------- Add dynamic functionality -----------------
+
+function waterUsePopups(e) {
+	console.log(e);
+	var layer = e.target;
+	if (e.target.feature.properties.DIST_AF && e.target.feature.properties.PLANNINGAR) {
+		info.update(layer.feature.properties);
+	L.popup()
+		.setLatLng(e.latlng)
+		.setContent('<b>' + e.target.feature.properties.PLANNINGAR + ' Planning Area</b>')
+		.openOn(map);	
+	}
+} 
+
+var info = L.control();
+
+info.onAdd = function (map) {
+    this._div = L.DomUtil.create('div', 'info');
+    this.update();
+    return this._div;
+};
+
+
+info.update = function (props) {
+    this._div.innerHTML =(props ? 
+		props.chart + "<br/>"
+		+ props.LINK
+		: '<b>Arizona Water Planning Area Statistics</b><br/><br/>This interactive map contains information relating <br/>to water resources within the state of Arizona.  All <br/>of the hydrologic data included in this map can be <br/>sourced to the Arizona Department of Water <br/>Resources. Click a polygon to get started!');
+};
+
+info.addTo(map);
+
+
+function highlightFeature(e) {
+    var layer = e.target;
+	
+    layer.setStyle({
+        fillColor: 'black',
+    });
+
+	
+    if (!L.Browser.ie && !L.Browser.opera) {
+        layer.bringToFront(); 
+	
+	}	
+}
+
+function resetHighlight(e) {
+	azwaterLayer.resetStyle(e.target);
+}
+
+function onEachFeature(feature, layer) {
+    layer.on({
+		click: waterUsePopups,
+        mouseover: highlightFeature,
+        mouseout: resetHighlight,
+    });
+}
+
+//--------- Create legend -----------------------------
+
+var legend = L.control({position: 'bottomleft'});
+legend.onAdd = function (map) {
+    var div = L.DomUtil.create('div', 'info legend');
+    div.innerHTML = '<b>Relative Water Levels</b><br/><font size="1">Amount of water available for use</font>' + '<br/>'
+					+ '<i style = "background: ' + '#084594' + '"></i>'
+					+ '<i style = "background: ' + '#2171b5' + '"></i>'
+					+ '<i style = "background: ' + '#4292c6' + '"></i>'
+					+ '<i style = "background: ' + '#6baed6' + '"></i>'
+					+ '<i style = "background: ' + '#9ecae1' + '"></i>'
+					+ '<i style = "background: ' + '#c6dbef' + '"></i>'
+					+ '<i style = "background: ' + '#eff3ff' + '"></i>' + '<br/>' 
+					+ '<space><font size="2">Less More</font></space>'
+	return div;
+};
+legend.addTo(map);
+
+</script>
